@@ -7,7 +7,7 @@ pub struct ServerEvents {
 
 impl ServerEvents {
     pub fn new(url: &str) -> Option<Self> {
-        let mut client = ClientBuilder::for_url(url);
+        let client = ClientBuilder::for_url(url);
 
         match client {
             Ok(stream_connection) => Some(ServerEvents {
@@ -19,8 +19,8 @@ impl ServerEvents {
 
     pub async fn listen(
         self,
-        stream_event: fn(String, Option<String>),
-        stream_err: fn(Error),
+        stream_event: impl Fn(String, Option<String>),
+        stream_err: impl Fn(Error),
         keep_alive_friendly: bool,
     ) {
         self.stream(keep_alive_friendly)
@@ -37,9 +37,8 @@ impl ServerEvents {
     pub fn stream(
         self,
         keep_alive_friendly: bool,
-    ) -> std::pin::Pin<Box<dyn futures_util::Stream<Item = Result<(String, Option<String>)>> + Send>>
-    {
-        return Box::pin(
+    ) -> impl futures_util::Stream<Item = Result<(String, Option<String>)>> {
+        Box::pin(
             self.client
                 .build()
                 .stream()
@@ -54,12 +53,12 @@ impl ServerEvents {
                                 return Some(Ok((ev.event_type, None)));
                             }
 
-                            return Some(Ok((ev.event_type, Some(ev.data))));
+                            Some(Ok((ev.event_type, Some(ev.data))))
                         }
-                        Ok(SSE::Comment(_)) => return None,
+                        Ok(SSE::Comment(_)) => None,
                         Err(x) => Some(Err(x)),
                     }
                 }),
-        );
+        )
     }
 }
