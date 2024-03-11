@@ -2,67 +2,61 @@ use crate::constants::{
     END_AT, EQUAL_TO, EXPORT, FORMAT, LIMIT_TO_FIRST, LIMIT_TO_LAST, ORDER_BY, SHALLOW, START_AT,
 };
 use crate::Firebase;
-use itertools::Itertools;
-use std::collections::HashMap;
+use serde::Serialize;
 use url::Url;
 
 #[derive(Debug)]
 pub struct Params {
     pub uri: Url,
-    pub params: HashMap<String, String>,
 }
 
 impl Params {
     pub fn new(uri: Url) -> Self {
-        Self {
-            uri,
-            params: Default::default(),
-        }
+        Self { uri }
     }
 
-    pub fn set_params(&mut self) {
-        for (k, v) in self.params.iter().sorted() {
-            self.uri.query_pairs_mut().append_pair(k, v);
-        }
-    }
-
-    pub fn add_param(&mut self, key: &str, value: impl ToString) -> &mut Self {
-        self.params.insert(key.to_string(), value.to_string());
-        self.set_params();
-
+    pub fn add_param<T: Serialize>(&mut self, key: &str, value: &T) -> &mut Self {
+        self.uri
+            .query_pairs_mut()
+            .append_pair(key, &serde_json::to_string(value).unwrap());
         self
     }
 
     pub fn order_by(&mut self, key: &str) -> &mut Params {
-        self.add_param(ORDER_BY, key)
+        self.uri
+            .query_pairs_mut()
+            .append_pair(ORDER_BY, &format!("\"{key}\""));
+
+        self
     }
 
-    pub fn limit_to_first(&mut self, count: impl ToString) -> &mut Params {
+    pub fn limit_to_first<T: Serialize>(&mut self, count: &T) -> &mut Params {
         self.add_param(LIMIT_TO_FIRST, count)
     }
 
-    pub fn limit_to_last(&mut self, count: impl ToString) -> &mut Params {
+    pub fn limit_to_last<T: Serialize>(&mut self, count: &T) -> &mut Params {
         self.add_param(LIMIT_TO_LAST, count)
     }
 
-    pub fn start_at(&mut self, index: impl ToString) -> &mut Params {
+    pub fn start_at<T: Serialize>(&mut self, index: &T) -> &mut Params {
         self.add_param(START_AT, index)
     }
 
-    pub fn end_at(&mut self, index: impl ToString) -> &mut Params {
+    pub fn end_at<T: Serialize>(&mut self, index: &T) -> &mut Params {
         self.add_param(END_AT, index)
     }
 
-    pub fn equal_to(&mut self, value: impl ToString) -> &mut Params {
+    pub fn equal_to<T: Serialize>(&mut self, value: &T) -> &mut Params {
         self.add_param(EQUAL_TO, value)
     }
 
     pub fn shallow(&mut self, flag: bool) -> &mut Params {
-        self.add_param(SHALLOW, flag)
+        self.add_param(SHALLOW, &flag)
     }
 
     pub fn format(&mut self) -> &mut Params {
-        self.add_param(FORMAT, EXPORT)
+        self.uri.query_pairs_mut().append_pair(ORDER_BY, EXPORT);
+        self
     }
 
     pub fn finish(&self) -> Firebase {
@@ -81,11 +75,9 @@ mod tests {
         let mut params: HashMap<String, String> = HashMap::new();
         params.insert("param_1".to_owned(), "value_1".to_owned());
         params.insert("param_2".to_owned(), "value_2".to_owned());
-        let mut param = Params {
+        let param = Params {
             uri: Url::parse("https://github.com/emreyalvac").unwrap(),
-            params,
         };
-        param.set_params();
 
         assert_eq!(
             param.uri.as_str(),
