@@ -50,7 +50,7 @@ impl Firebase {
     where
         Self: Sized,
     {
-        match check_uri(&uri) {
+        match check_uri(uri) {
             Ok(mut uri) => {
                 uri.set_query(Some(&format!("{}={}", AUTH, auth_key)));
                 Ok(Self { uri })
