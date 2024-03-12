@@ -2,23 +2,20 @@ use eventsource_client::*;
 use futures_util::StreamExt;
 
 pub struct ServerEvents {
-    client: ClientBuilder,
+    client: Box<dyn Client>,
 }
 
 impl ServerEvents {
-    pub fn new(url: &str) -> Option<Self> {
-        let client = ClientBuilder::for_url(url);
+    pub fn new(url: &str) -> Result<Self> {
+        let client = ClientBuilder::for_url(url).map(|cb| cb.build())?;
 
-        match client {
-            Ok(stream_connection) => Some(ServerEvents {
-                client: stream_connection,
-            }),
-            Err(_) => None,
-        }
+        Ok(Self {
+            client: Box::new(client),
+        })
     }
 
     pub async fn listen(
-        self,
+        &self,
         stream_event: impl Fn(String, Option<String>),
         stream_err: impl Fn(Error),
         keep_alive_friendly: bool,
@@ -35,30 +32,25 @@ impl ServerEvents {
     }
 
     pub fn stream(
-        self,
+        &self,
         keep_alive_friendly: bool,
     ) -> impl futures_util::Stream<Item = Result<(String, Option<String>)>> {
-        Box::pin(
-            self.client
-                .build()
-                .stream()
-                .filter_map(move |event| async move {
-                    match event {
-                        Ok(SSE::Event(ev)) => {
-                            if ev.event_type == "keep-alive" && !keep_alive_friendly {
-                                return None;
-                            }
-
-                            if ev.data == "null" {
-                                return Some(Ok((ev.event_type, None)));
-                            }
-
-                            Some(Ok((ev.event_type, Some(ev.data))))
-                        }
-                        Ok(SSE::Comment(_)) => None,
-                        Err(x) => Some(Err(x)),
+        Box::pin(self.client.stream().filter_map(move |event| async move {
+            match event {
+                Ok(SSE::Event(ev)) => {
+                    if ev.event_type == "keep-alive" && !keep_alive_friendly {
+                        return None;
                     }
-                }),
-        )
+
+                    if ev.data == "null" {
+                        return Some(Ok((ev.event_type, None)));
+                    }
+
+                    Some(Ok((ev.event_type, Some(ev.data))))
+                }
+                Ok(SSE::Comment(_)) => None,
+                Err(x) => Some(Err(x)),
+            }
+        }))
     }
 }
