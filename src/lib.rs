@@ -32,7 +32,7 @@ impl Firebase {
     where
         Self: Sized,
     {
-        match check_uri(&uri) {
+        match check_uri(uri) {
             Ok(uri) => Ok(Self { uri }),
             Err(err) => Err(err),
         }
@@ -103,7 +103,7 @@ impl Firebase {
     ///        }).await;
     /// # }
     /// ```
-    pub fn with_realtime_events(&self) -> Option<ServerEvents> {
+    pub fn with_realtime_events(&self) -> Result<ServerEvents, eventsource_client::Error> {
         ServerEvents::new(self.uri.as_str())
     }
 
@@ -117,7 +117,7 @@ impl Firebase {
 
         let paths = self.uri.path_segments().map(|p| p.collect::<Vec<_>>());
         for mut path in paths.unwrap() {
-            if path.find(".json").is_some() {
+            if path.contains(".json") {
                 path = path.trim_end_matches(".json");
             }
             new_path += format!("{}/", path).as_str();
@@ -125,7 +125,7 @@ impl Firebase {
 
         new_path += path;
 
-        if new_path.find(".json").is_some() {
+        if new_path.contains(".json") {
             new_path = new_path.trim_end_matches(".json").to_string();
         }
 
@@ -147,30 +147,30 @@ impl Firebase {
     async fn request(&self, method: Method, data: Option<Value>) -> RequestResult<Response> {
         let client = reqwest::Client::new();
 
-        return match method {
+        match method {
             Method::GET => {
                 let request = client.get(self.uri.to_string()).send().await;
                 match request {
                     Ok(response) => {
                         if response.status() == StatusCode::from_u16(200).unwrap() {
-                            return match response.text().await {
+                            match response.text().await {
                                 Ok(data) => {
                                     if data.as_str() == "null" {
                                         return Err(RequestError::NotFoundOrNullBody);
                                     }
-                                    return Ok(Response { data });
+                                    Ok(Response { data })
                                 }
                                 Err(_) => Err(RequestError::NotJSON),
-                            };
+                            }
                         } else {
                             Err(RequestError::NetworkError)
                         }
                     }
-                    Err(_) => return Err(RequestError::NetworkError),
+                    Err(_) => Err(RequestError::NetworkError),
                 }
             }
             Method::POST => {
-                if !data.is_some() {
+                if data.is_none() {
                     return Err(RequestError::SerializeError);
                 }
 
@@ -184,7 +184,7 @@ impl Firebase {
                 }
             }
             Method::PATCH => {
-                if !data.is_some() {
+                if data.is_none() {
                     return Err(RequestError::SerializeError);
                 }
 
@@ -206,7 +206,7 @@ impl Firebase {
                     Err(_) => Err(RequestError::NetworkError),
                 }
             }
-        };
+        }
     }
 
     async fn request_generic<T>(&self, method: Method) -> RequestResult<T>
@@ -244,7 +244,7 @@ impl Firebase {
     where
         T: Serialize + DeserializeOwned + Debug,
     {
-        let data = serde_json::to_value(&data).unwrap();
+        let data = serde_json::to_value(data).unwrap();
         self.request(Method::POST, Some(data)).await
     }
 
@@ -325,7 +325,7 @@ impl Firebase {
     where
         T: DeserializeOwned + Serialize + Debug,
     {
-        let value = serde_json::to_value(&data).unwrap();
+        let value = serde_json::to_value(data).unwrap();
         self.request(Method::PATCH, Some(value)).await
     }
 }

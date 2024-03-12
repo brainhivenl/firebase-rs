@@ -15,10 +15,10 @@ impl Params {
         Self { uri }
     }
 
-    pub fn add_param<T: Serialize>(&mut self, key: &str, value: &T) -> &mut Self {
+    pub fn add_param<T: Serialize>(&mut self, key: &str, value: T) -> &mut Self {
         self.uri
             .query_pairs_mut()
-            .append_pair(key, &serde_json::to_string(value).unwrap());
+            .append_pair(key, &serde_json::to_string(&value).unwrap());
         self
     }
 
@@ -30,28 +30,28 @@ impl Params {
         self
     }
 
-    pub fn limit_to_first<T: Serialize>(&mut self, count: &T) -> &mut Params {
+    pub fn limit_to_first<T: Serialize>(&mut self, count: T) -> &mut Params {
         self.add_param(LIMIT_TO_FIRST, count)
     }
 
-    pub fn limit_to_last<T: Serialize>(&mut self, count: &T) -> &mut Params {
+    pub fn limit_to_last<T: Serialize>(&mut self, count: T) -> &mut Params {
         self.add_param(LIMIT_TO_LAST, count)
     }
 
-    pub fn start_at<T: Serialize>(&mut self, index: &T) -> &mut Params {
+    pub fn start_at<T: Serialize>(&mut self, index: T) -> &mut Params {
         self.add_param(START_AT, index)
     }
 
-    pub fn end_at<T: Serialize>(&mut self, index: &T) -> &mut Params {
+    pub fn end_at<T: Serialize>(&mut self, index: T) -> &mut Params {
         self.add_param(END_AT, index)
     }
 
-    pub fn equal_to<T: Serialize>(&mut self, value: &T) -> &mut Params {
+    pub fn equal_to<T: Serialize>(&mut self, value: T) -> &mut Params {
         self.add_param(EQUAL_TO, value)
     }
 
     pub fn shallow(&mut self, flag: bool) -> &mut Params {
-        self.add_param(SHALLOW, &flag)
+        self.add_param(SHALLOW, flag)
     }
 
     pub fn format(&mut self) -> &mut Params {
@@ -67,21 +67,20 @@ impl Params {
 #[cfg(test)]
 mod tests {
     use crate::params::Params;
-    use std::collections::HashMap;
     use url::Url;
 
     #[test]
     fn check_params() {
-        let mut params: HashMap<String, String> = HashMap::new();
-        params.insert("param_1".to_owned(), "value_1".to_owned());
-        params.insert("param_2".to_owned(), "value_2".to_owned());
-        let param = Params {
+        let mut param = Params {
             uri: Url::parse("https://github.com/emreyalvac").unwrap(),
         };
 
+        param.add_param("param_1", "value_1");
+        param.add_param("param_2", "value_2");
+
         assert_eq!(
             param.uri.as_str(),
-            "https://github.com/emreyalvac?param_1=value_1&param_2=value_2"
+            "https://github.com/emreyalvac?param_1=%22value_1%22&param_2=%22value_2%22"
         )
     }
 }
