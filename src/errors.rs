@@ -1,4 +1,7 @@
-use std::{error::Error, fmt::{Display, Formatter}};
+use std::{
+    error::Error,
+    fmt::{Display, Formatter},
+};
 
 pub type UrlParseResult<T> = Result<T, UrlParseError>;
 
@@ -27,7 +30,8 @@ pub type RequestResult<T> = Result<T, RequestError>;
 pub enum RequestError {
     NotJSON,
     NoUTF8,
-    NetworkError,
+    NetworkError(reqwest::Error),
+    InvalidStatus(reqwest::StatusCode),
     SerializeError,
     NotFoundOrNullBody,
 }
@@ -39,7 +43,8 @@ impl Display for RequestError {
         match self {
             RequestError::NotJSON => write!(f, "Invalid JSON"),
             RequestError::NoUTF8 => write!(f, "Utf8 error"),
-            RequestError::NetworkError => write!(f, "Network error"),
+            RequestError::NetworkError(e) => write!(f, "Network error: {}", e),
+            RequestError::InvalidStatus(status) => write!(f, "Invalid status code: {}", status),
             RequestError::SerializeError => write!(f, "Serialize error"),
             RequestError::NotFoundOrNullBody => write!(f, "Body is null or record is not found"),
         }

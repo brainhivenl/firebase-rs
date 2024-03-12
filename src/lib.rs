@@ -163,10 +163,10 @@ impl Firebase {
                                 Err(_) => Err(RequestError::NotJSON),
                             }
                         } else {
-                            Err(RequestError::NetworkError)
+                            Err(RequestError::InvalidStatus(response.status()))
                         }
                     }
-                    Err(_) => Err(RequestError::NetworkError),
+                    Err(e) => Err(RequestError::NetworkError(e)),
                 }
             }
             Method::POST => {
@@ -180,7 +180,7 @@ impl Firebase {
                         let data = response.text().await.unwrap();
                         Ok(Response { data })
                     }
-                    Err(_) => Err(RequestError::NetworkError),
+                    Err(e) => Err(RequestError::NetworkError(e)),
                 }
             }
             Method::PATCH => {
@@ -194,7 +194,7 @@ impl Firebase {
                         let data = response.text().await.unwrap();
                         Ok(Response { data })
                     }
-                    Err(_) => Err(RequestError::NetworkError),
+                    Err(e) => Err(RequestError::NetworkError(e)),
                 }
             }
             Method::DELETE => {
@@ -203,7 +203,7 @@ impl Firebase {
                     Ok(_) => Ok(Response {
                         data: String::default(),
                     }),
-                    Err(_) => Err(RequestError::NetworkError),
+                    Err(e) => Err(RequestError::NetworkError(e)),
                 }
             }
         }
