@@ -14,7 +14,7 @@ use utils::check_uri;
 mod constants;
 pub mod errors;
 mod params;
-mod sse;
+pub mod sse;
 mod utils;
 
 #[derive(Debug)]
